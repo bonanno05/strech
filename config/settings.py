@@ -131,3 +131,11 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/topics/email/
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+
+# Tipo de clave primaria por omision
+# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+# Se usa AutoField (INT) y no BigAutoField (BIGINT) para que el esquema
+# coincida con el modelo de datos documentado en la Figura 23 del informe.
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
