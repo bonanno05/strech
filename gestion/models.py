@@ -20,8 +20,14 @@ class Cliente(models.Model):
         verbose_name_plural = 'clientes'
 
     def __str__(self):
-        nombre_completo = f'{self.nombre or ""} {self.apellido or ""}'.strip()
-        return nombre_completo or f'Cliente {self.id} (datos eliminados)'
+        partes = []
+        if self.nombre:
+            partes.append(self.nombre)
+        if self.apellido:
+            partes.append(self.apellido)
+        if partes:
+            return ' '.join(partes)
+        return f'Cliente {self.id} (datos eliminados)'
 
 
 class Categoria(models.Model):
@@ -118,7 +124,6 @@ class DetallePedido(models.Model):
     def __str__(self):
         return f'{self.cantidad} x {self.nombre_producto}'
 
-    @property
     def subtotal(self):
         return self.cantidad * self.precio_unitario
 
@@ -142,14 +147,15 @@ class Reparacion(models.Model):
     def __str__(self):
         return f'{self.codigo_seguimiento} - {self.modelo_equipo}'
 
-    @property
     def ultimo_cambio(self):
-        return self.cambios.order_by('-fecha', '-id').first()
+        cambios_ordenados = self.cambios.order_by('-fecha', '-id')
+        return cambios_ordenados.first()
 
-    @property
     def estado_actual(self):
-        ultimo = self.ultimo_cambio
-        return ultimo.get_estado_display() if ultimo else 'Sin registrar'
+        ultimo = self.ultimo_cambio()
+        if ultimo is None:
+            return 'Sin registrar'
+        return ultimo.get_estado_display()
 
 
 class CambioEstado(models.Model):

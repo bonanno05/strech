@@ -22,6 +22,19 @@
 
         {% if producto.stock > 0 %}
             <p><span class="badge text-bg-success">Disponible</span></p>
+
+            <form method="post" action="{% url 'agregar_al_carrito' producto.id %}"
+                  class="row g-2 align-items-end" style="max-width: 420px;">
+                {% csrf_token %}
+                <div class="col-5">
+                    <label for="cantidad" class="form-label small mb-1">Cantidad</label>
+                    <input type="number" id="cantidad" name="cantidad" value="1"
+                           min="1" max="{{ producto.stock }}" class="form-control">
+                </div>
+                <div class="col-7 d-grid">
+                    <button type="submit" class="btn btn-primary">Agregar al carrito</button>
+                </div>
+            </form>
         {% else %}
             <p><span class="badge text-bg-secondary">Agotado</span></p>
         {% endif %}

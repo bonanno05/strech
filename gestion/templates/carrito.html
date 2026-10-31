@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Carrito — Strech{% endblock %}
+
+{% block contenido %}
+
+<h1 class="h3 mb-4">Tu carrito</h1>
+
+{% if lineas %}
+
+    <div class="card mb-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th class="text-end">Precio</th>
+                        <th style="width: 170px;">Cantidad</th>
+                        <th class="text-end">Subtotal</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for linea in lineas %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'producto_detalle' linea.producto.id %}"
+                                   class="text-decoration-none">
+                                    {{ linea.producto.nombre }}
+                                </a>
+                                <div class="small text-body-secondary">
+                                    {{ linea.producto.categoria.nombre }}
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                {{ linea.producto.moneda }} {{ linea.producto.precio }}
+                            </td>
+                            <td>
+                                <form method="post"
+                                      action="{% url 'actualizar_carrito' linea.producto.id %}"
+                                      class="d-flex gap-1">
+                                    {% csrf_token %}
+                                    <input type="number" name="cantidad"
+                                           value="{{ linea.cantidad }}"
+                                           min="1" max="{{ linea.producto.stock }}"
+                                           class="form-control form-control-sm"
+                                           aria-label="Cantidad de {{ linea.producto.nombre }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                        Cambiar
+                                    </button>
+                                </form>
+                            </td>
+                            <td class="text-end fw-semibold">
+                                {{ linea.producto.moneda }} {{ linea.subtotal }}
+                            </td>
+                            <td class="text-end">
+                                <form method="post"
+                                      action="{% url 'quitar_del_carrito' linea.producto.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        Quitar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="3" class="text-end">Total</th>
+                        <th class="text-end fs-5">{{ moneda }} {{ total }}</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'catalogo' %}" class="btn btn-outline-secondary">
+            Seguir mirando el catálogo
+        </a>
+        <button type="button" class="btn btn-primary" disabled>
+            Enviar el pedido
+        </button>
+    </div>
+
+    <p class="text-body-secondary small mt-2 mb-0">
+        Para enviar un pedido vas a necesitar una cuenta. Esa parte todavía no está hecha.
+    </p>
+
+{% else %}
+
+    <div class="alert alert-light border text-center py-5">
+        <p class="mb-1 fw-semibold">Tu carrito está vacío</p>
+        <p class="mb-3 text-body-secondary small">
+            Agregá productos desde el catálogo.
+        </p>
+        <a href="{% url 'catalogo' %}" class="btn btn-primary">Ir al catálogo</a>
+    </div>
+
+{% endif %}
+
+{% endblock %}

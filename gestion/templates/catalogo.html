@@ -16,7 +16,7 @@
             <option value="">Todas las categorías</option>
             {% for categoria in categorias %}
                 <option value="{{ categoria.id }}"
-                        {% if categoria.id|stringformat:"s" == categoria_activa %}selected{% endif %}>
+                        {% if categoria.id == categoria_activa %}selected{% endif %}>
                     {{ categoria.nombre }}
                 </option>
             {% endfor %}

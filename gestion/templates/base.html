@@ -22,12 +22,24 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'catalogo' %}">Catálogo</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'carrito' %}">Carrito</a>
+                </li>
             </ul>
         </div>
     </div>
 </nav>
 
 <main class="container py-4 flex-grow-1">
+
+    {% for mensaje in messages %}
+        <div class="alert {% if mensaje.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show">
+            {{ mensaje }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                    aria-label="Cerrar"></button>
+        </div>
+    {% endfor %}
+
     {% block contenido %}{% endblock %}
 </main>
 
