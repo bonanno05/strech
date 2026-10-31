@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ producto.nombre }} — Strech{% endblock %}
+
+{% block contenido %}
+
+<nav aria-label="Ubicación">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'catalogo' %}">Catálogo</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ producto.nombre }}</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-body">
+        <span class="badge text-bg-light mb-2">{{ producto.categoria.nombre }}</span>
+        <h1 class="h4">{{ producto.nombre }}</h1>
+
+        <p class="fs-3 fw-semibold mb-2">
+            {{ producto.moneda }} {{ producto.precio }}
+        </p>
+
+        {% if producto.stock > 0 %}
+            <p><span class="badge text-bg-success">Disponible</span></p>
+        {% else %}
+            <p><span class="badge text-bg-secondary">Agotado</span></p>
+        {% endif %}
+
+        {% if producto.descripcion %}
+            <h2 class="h6 text-body-secondary mt-4">Descripción</h2>
+            <p class="mb-0">{{ producto.descripcion|linebreaksbr }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<a href="{% url 'catalogo' %}" class="btn btn-outline-secondary mt-3">Volver al catálogo</a>
+
+{% endblock %}

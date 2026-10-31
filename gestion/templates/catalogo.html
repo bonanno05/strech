@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Catálogo — Strech{% endblock %}
+
+{% block contenido %}
+
+<h1 class="h3 mb-4">Catálogo</h1>
+
+<form method="get" class="row g-2 mb-4">
+    <div class="col-12 col-md-6">
+        <input type="search" name="q" value="{{ busqueda }}" class="form-control"
+               placeholder="Buscar un producto" aria-label="Buscar un producto">
+    </div>
+    <div class="col-8 col-md-4">
+        <select name="categoria" class="form-select" aria-label="Filtrar por categoría">
+            <option value="">Todas las categorías</option>
+            {% for categoria in categorias %}
+                <option value="{{ categoria.id }}"
+                        {% if categoria.id|stringformat:"s" == categoria_activa %}selected{% endif %}>
+                    {{ categoria.nombre }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-4 col-md-2 d-grid">
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </div>
+</form>
+
+{% if productos %}
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
+        {% for producto in productos %}
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <span class="badge text-bg-light align-self-start mb-2">
+                            {{ producto.categoria.nombre }}
+                        </span>
+                        <h2 class="h6 card-title">{{ producto.nombre }}</h2>
+                        <p class="fs-5 fw-semibold mb-2">
+                            {{ producto.moneda }} {{ producto.precio }}
+                        </p>
+                        {% if producto.stock > 0 %}
+                            <span class="badge text-bg-success align-self-start mb-3">Disponible</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary align-self-start mb-3">Agotado</span>
+                        {% endif %}
+                        <a href="{% url 'producto_detalle' producto.id %}"
+                           class="btn btn-outline-primary btn-sm mt-auto">Ver detalle</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-light border text-center py-5">
+        <p class="mb-1 fw-semibold">No se encontraron productos</p>
+        <p class="mb-0 text-body-secondary small">Probá con otra búsqueda o cambiá la categoría.</p>
+    </div>
+{% endif %}
+
+{% endblock %}
