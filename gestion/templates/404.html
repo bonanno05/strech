@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Página no encontrada — Strech{% endblock %}
+
+{% block contenido %}
+
+<div class="text-center py-5">
+    <p class="display-6 text-body-secondary mb-2">404</p>
+    <h1 class="h4 mb-2">No encontramos esta página</h1>
+    <p class="text-body-secondary mb-4">
+        Puede que el enlace esté mal escrito o que el producto ya no esté publicado.
+    </p>
+    <a href="{% url 'catalogo' %}" class="btn btn-primary">Ir al catálogo</a>
+</div>
+
+{% endblock %}

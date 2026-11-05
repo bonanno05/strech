@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Acceso denegado — Strech{% endblock %}
+
+{% block contenido %}
+
+<div class="text-center py-5">
+    <p class="display-6 text-body-secondary mb-2">403</p>
+    <h1 class="h4 mb-2">No tenés permiso para entrar acá</h1>
+    <p class="text-body-secondary mb-4">
+        Si estabas con la sesión abierta, puede que haya vencido.
+    </p>
+    <a href="{% url 'ingresar' %}" class="btn btn-primary">Iniciar sesión</a>
+    <a href="{% url 'catalogo' %}" class="btn btn-outline-secondary">Ir al catálogo</a>
+</div>
+
+{% endblock %}

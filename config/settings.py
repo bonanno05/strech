@@ -140,3 +140,41 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # coincida con el modelo de datos documentado en la Figura 23 del informe.
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+
+# Registro de errores
+# https://docs.djangoproject.com/en/5.2/topics/logging/
+#
+# Los errores del servidor (500) se escriben en errores.log ademas de la
+# consola. Sin esto, un error en produccion no deja ningun rastro.
+# Los errores del cliente (404, 403) no se registran: son esperables.
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'detallado': {
+            'format': '{asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'consola': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'detallado',
+        },
+        'archivo': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'errores.log',
+            'encoding': 'utf-8',
+            'formatter': 'detallado',
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['consola', 'archivo'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
