@@ -1,0 +1,10 @@
+# Dependencias minimas para la demostracion sin MySQL.
+#
+# Se omite mysqlclient a proposito: es la unica dependencia que necesita un
+# compilador de C instalado y la que mas problemas da en Windows. Sin servidor
+# MySQL tampoco hace falta.
+#
+# Se instala con:  pip install -r requirements-demo.txt
+
+Django==5.2.18
+python-dotenv==1.2.4
