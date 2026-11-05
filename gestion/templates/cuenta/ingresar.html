@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Iniciar sesión — Strech{% endblock %}
+
+{% block contenido %}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-7 col-lg-5">
+
+        <h1 class="h3 mb-4">Iniciar sesión</h1>
+
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="{% url 'ingresar' %}" class="card">
+            {% csrf_token %}
+            <div class="card-body">
+
+                <div class="mb-3">
+                    <label for="whatsapp" class="form-label">Número de WhatsApp</label>
+                    <input type="tel" id="whatsapp" name="whatsapp" value="{{ whatsapp }}"
+                           class="form-control" maxlength="20" required autofocus>
+                </div>
+
+                <div class="mb-3">
+                    <label for="contrasena" class="form-label">Contraseña</label>
+                    <input type="password" id="contrasena" name="contrasena"
+                           class="form-control" required>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Entrar</button>
+                </div>
+
+            </div>
+        </form>
+
+        <p class="text-center mt-3 mb-1">
+            ¿Todavía no tenés cuenta?
+            <a href="{% url 'registro' %}">Creá una</a>
+        </p>
+        <p class="text-center text-body-secondary small mb-0">
+            Si olvidaste tu contraseña, pedile al vendedor que te la restablezca.
+        </p>
+
+    </div>
+</div>
+
+{% endblock %}

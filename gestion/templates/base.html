@@ -18,13 +18,36 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="menu">
-            <ul class="navbar-nav ms-auto">
+            <ul class="navbar-nav ms-auto align-items-lg-center">
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'catalogo' %}">Catálogo</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'carrito' %}">Carrito</a>
                 </li>
+
+                {% if cliente %}
+                    <li class="nav-item">
+                        <span class="nav-link text-body-secondary">{{ cliente }}</span>
+                    </li>
+                    <li class="nav-item">
+                        <form method="post" action="{% url 'salir' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                Salir
+                            </button>
+                        </form>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'ingresar' %}">Iniciar sesión</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-sm btn-primary" href="{% url 'registro' %}">
+                            Crear cuenta
+                        </a>
+                    </li>
+                {% endif %}
             </ul>
         </div>
     </div>

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Crear cuenta — Strech{% endblock %}
+
+{% block contenido %}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+
+        <h1 class="h3 mb-1">Crear una cuenta</h1>
+        <p class="text-body-secondary mb-4">
+            Hace falta para enviar pedidos y para seguir tus reparaciones.
+        </p>
+
+        {% if errores %}
+            <div class="alert alert-danger">
+                <ul class="mb-0 ps-3">
+                    {% for error in errores %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'registro' %}" class="card">
+            {% csrf_token %}
+            <div class="card-body">
+
+                <div class="row g-3">
+                    <div class="col-12 col-sm-6">
+                        <label for="nombre" class="form-label">Nombre</label>
+                        <input type="text" id="nombre" name="nombre" value="{{ nombre }}"
+                               class="form-control" maxlength="50" required>
+                    </div>
+
+                    <div class="col-12 col-sm-6">
+                        <label for="apellido" class="form-label">Apellido</label>
+                        <input type="text" id="apellido" name="apellido" value="{{ apellido }}"
+                               class="form-control" maxlength="50" required>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="whatsapp" class="form-label">Número de WhatsApp</label>
+                        <input type="tel" id="whatsapp" name="whatsapp" value="{{ whatsapp }}"
+                               class="form-control" maxlength="20" required>
+                        <div class="form-text">Con este número vas a iniciar sesión.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="correo" class="form-label">Correo electrónico</label>
+                        <input type="email" id="correo" name="correo" value="{{ correo }}"
+                               class="form-control" maxlength="100" required>
+                    </div>
+
+                    <div class="col-12 col-sm-6">
+                        <label for="contrasena" class="form-label">Contraseña</label>
+                        <input type="password" id="contrasena" name="contrasena"
+                               class="form-control" minlength="8" required>
+                        <div class="form-text">Al menos 8 caracteres.</div>
+                    </div>
+
+                    <div class="col-12 col-sm-6">
+                        <label for="repetir_contrasena" class="form-label">Repetir contraseña</label>
+                        <input type="password" id="repetir_contrasena" name="repetir_contrasena"
+                               class="form-control" minlength="8" required>
+                    </div>
+                </div>
+
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary">Crear la cuenta</button>
+                </div>
+
+            </div>
+        </form>
+
+        <p class="text-center mt-3 mb-0">
+            ¿Ya tenés cuenta?
+            <a href="{% url 'ingresar' %}">Iniciá sesión</a>
+        </p>
+
+    </div>
+</div>
+
+{% endblock %}

@@ -1,9 +1,10 @@
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.auth.hashers import check_password, make_password
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .models import Categoria, Producto
+from .models import Categoria, Cliente, Producto
 
 
 # El carrito se guarda en la sesion del navegador, no en la base de datos.
@@ -11,6 +12,32 @@ from .models import Categoria, Producto
 # Es un diccionario donde la clave es el id del producto (como texto, porque
 # la sesion solo admite texto) y el valor es la cantidad.
 CLAVE_CARRITO = 'carrito'
+
+# En la sesion tambien se guarda que cliente inicio sesion. Se guarda solo el
+# id: los datos se vuelven a buscar en cada peticion, asi que si la cuenta se
+# desactiva deja de funcionar enseguida.
+CLAVE_CLIENTE = 'cliente_id'
+
+
+def cliente_actual(request):
+    """Devuelve el Cliente que inicio sesion, o None si no hay nadie."""
+    cliente_id = request.session.get(CLAVE_CLIENTE)
+    if cliente_id is None:
+        return None
+
+    cliente = Cliente.objects.filter(pk=cliente_id, activo=True).first()
+    return cliente
+
+
+def datos_del_cliente(request):
+    """Deja el cliente disponible en todas las plantillas, sin pasarlo a mano.
+
+    Se registra en settings.py, dentro de context_processors.
+    """
+    datos = {
+        'cliente': cliente_actual(request),
+    }
+    return datos
 
 
 def leer_carrito(request):
@@ -211,3 +238,114 @@ def quitar_del_carrito(request, producto_id):
 
     messages.success(request, 'Se quitó el producto del carrito.')
     return redirect('carrito')
+
+
+def registro(request):
+    if cliente_actual(request) is not None:
+        return redirect('catalogo')
+
+    if request.method != 'POST':
+        return render(request, 'cuenta/registro.html', {})
+
+    nombre = request.POST.get('nombre', '').strip()
+    apellido = request.POST.get('apellido', '').strip()
+    whatsapp = request.POST.get('whatsapp', '').strip()
+    correo = request.POST.get('correo', '').strip()
+    contrasena = request.POST.get('contrasena', '')
+    repetir_contrasena = request.POST.get('repetir_contrasena', '')
+
+    errores = []
+
+    if nombre == '':
+        errores.append('Falta el nombre.')
+
+    if apellido == '':
+        errores.append('Falta el apellido.')
+
+    if whatsapp == '':
+        errores.append('Falta el número de WhatsApp.')
+    else:
+        ya_existe = Cliente.objects.filter(whatsapp=whatsapp).exists()
+        if ya_existe:
+            errores.append('Ya hay una cuenta registrada con ese número.')
+
+    if correo == '':
+        errores.append('Falta el correo electrónico.')
+
+    if len(contrasena) < 8:
+        errores.append('La contraseña necesita al menos 8 caracteres.')
+
+    if contrasena != repetir_contrasena:
+        errores.append('Las dos contraseñas no coinciden.')
+
+    if errores:
+        # Se devuelven los valores escritos para no obligar a cargarlos de nuevo.
+        # La contrasena no se devuelve nunca.
+        datos = {
+            'errores': errores,
+            'nombre': nombre,
+            'apellido': apellido,
+            'whatsapp': whatsapp,
+            'correo': correo,
+        }
+        return render(request, 'cuenta/registro.html', datos)
+
+    cliente = Cliente()
+    cliente.nombre = nombre
+    cliente.apellido = apellido
+    cliente.whatsapp = whatsapp
+    cliente.correo = correo
+    # make_password convierte la contrasena en un hash. Lo que se guarda no
+    # permite recuperar la contrasena original (RNF-13).
+    cliente.contrasena = make_password(contrasena)
+    cliente.save()
+
+    request.session[CLAVE_CLIENTE] = cliente.id
+
+    messages.success(request, 'Tu cuenta quedó creada.')
+    return redirect('catalogo')
+
+
+def ingresar(request):
+    if cliente_actual(request) is not None:
+        return redirect('catalogo')
+
+    if request.method != 'POST':
+        return render(request, 'cuenta/ingresar.html', {})
+
+    whatsapp = request.POST.get('whatsapp', '').strip()
+    contrasena = request.POST.get('contrasena', '')
+
+    cliente = Cliente.objects.filter(whatsapp=whatsapp, activo=True).first()
+
+    # Se responde lo mismo si el numero no existe, si la cuenta no tiene
+    # contrasena o si la contrasena esta mal. Asi nadie puede averiguar que
+    # numeros tienen cuenta probando de a uno.
+    contrasena_correcta = False
+    if cliente is not None and cliente.contrasena:
+        contrasena_correcta = check_password(contrasena, cliente.contrasena)
+
+    if not contrasena_correcta:
+        datos = {
+            'error': 'El número o la contraseña no son correctos.',
+            'whatsapp': whatsapp,
+        }
+        return render(request, 'cuenta/ingresar.html', datos)
+
+    # Al iniciar sesion se renueva el identificador de sesion, para que un
+    # identificador capturado antes no sirva despues. El contenido se conserva,
+    # asi que el carrito armado sin cuenta no se pierde.
+    request.session.cycle_key()
+    request.session[CLAVE_CLIENTE] = cliente.id
+
+    messages.success(request, 'Hola de nuevo, ' + cliente.nombre + '.')
+    return redirect('catalogo')
+
+
+def salir(request):
+    if request.method != 'POST':
+        return redirect('catalogo')
+
+    request.session.pop(CLAVE_CLIENTE, None)
+    messages.success(request, 'Cerraste la sesión.')
+    return redirect('catalogo')
