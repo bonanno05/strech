@@ -1,0 +1,134 @@
+[
+{
+  "model": "gestion.categoria",
+  "pk": 1,
+  "fields": { "nombre": "Celulares" }
+},
+{
+  "model": "gestion.categoria",
+  "pk": 2,
+  "fields": { "nombre": "Accesorios" }
+},
+{
+  "model": "gestion.categoria",
+  "pk": 3,
+  "fields": { "nombre": "Audio" }
+},
+{
+  "model": "gestion.producto",
+  "pk": 1,
+  "fields": {
+    "nombre": "iPhone 13",
+    "descripcion": "128 GB. Bateria 89% o superior. Libre de fabrica.",
+    "categoria": 1,
+    "precio": "620.00",
+    "moneda": "USD",
+    "stock": 3,
+    "activo": true
+  }
+},
+{
+  "model": "gestion.producto",
+  "pk": 2,
+  "fields": {
+    "nombre": "iPhone 13 Pro",
+    "descripcion": "256 GB. Bateria 91%. Incluye cable.",
+    "categoria": 1,
+    "precio": "830.00",
+    "moneda": "USD",
+    "stock": 2,
+    "activo": true
+  }
+},
+{
+  "model": "gestion.producto",
+  "pk": 3,
+  "fields": {
+    "nombre": "iPhone 14",
+    "descripcion": "128 GB. Sellado.",
+    "categoria": 1,
+    "precio": "910.00",
+    "moneda": "USD",
+    "stock": 1,
+    "activo": true
+  }
+},
+{
+  "model": "gestion.producto",
+  "pk": 4,
+  "fields": {
+    "nombre": "iPhone 12",
+    "descripcion": "64 GB. Bateria 85%.",
+    "categoria": 1,
+    "precio": "470.00",
+    "moneda": "USD",
+    "stock": 5,
+    "activo": true
+  }
+},
+{
+  "model": "gestion.producto",
+  "pk": 5,
+  "fields": {
+    "nombre": "Cargador MagSafe",
+    "descripcion": "Carga inalambrica de 15 W.",
+    "categoria": 2,
+    "precio": "45000.00",
+    "moneda": "ARS",
+    "stock": 10,
+    "activo": true
+  }
+},
+{
+  "model": "gestion.producto",
+  "pk": 6,
+  "fields": {
+    "nombre": "Funda transparente",
+    "descripcion": "Compatible con iPhone 12, 13 y 14.",
+    "categoria": 2,
+    "precio": "12000.00",
+    "moneda": "ARS",
+    "stock": 24,
+    "activo": true
+  }
+},
+{
+  "model": "gestion.producto",
+  "pk": 7,
+  "fields": {
+    "nombre": "Vidrio templado",
+    "descripcion": "Incluye kit de colocacion.",
+    "categoria": 2,
+    "precio": "8500.00",
+    "moneda": "ARS",
+    "stock": 40,
+    "activo": true
+  }
+},
+{
+  "model": "gestion.producto",
+  "pk": 8,
+  "fields": {
+    "nombre": "AirPods 3ra generacion",
+    "descripcion": "Con estuche de carga MagSafe.",
+    "categoria": 3,
+    "precio": "185.00",
+    "moneda": "USD",
+    "stock": 4,
+    "activo": true
+  }
+},
+{
+  "model": "gestion.producto",
+  "pk": 9,
+  "fields": {
+    "nombre": "Auriculares Lightning",
+    "descripcion": "Originales, con conector Lightning.",
+    "categoria": 3,
+    "precio": "28000.00",
+    "moneda": "ARS",
+    "stock": 0,
+    "activo": true
+  }
+}
+]
