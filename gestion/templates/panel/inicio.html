@@ -1,0 +1,94 @@
+{% extends 'panel/base.html' %}
+
+{% block titulo %}Panel — Strech{% endblock %}
+{% block nav_inicio %}active{% endblock %}
+
+{% block contenido %}
+
+<h1 class="h4 mb-4">Estado del negocio</h1>
+
+<div class="row g-3 mb-4">
+
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 {% if pedidos_pendientes %}border-warning{% endif %}">
+            <div class="card-body">
+                <p class="text-body-secondary small mb-1">Pedidos pendientes</p>
+                <p class="display-6 mb-0">{{ pedidos_pendientes }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <p class="text-body-secondary small mb-1">Pedidos confirmados</p>
+                <p class="display-6 mb-0">{{ pedidos_confirmados }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 {% if productos_agotados %}border-danger{% endif %}">
+            <div class="card-body">
+                <p class="text-body-secondary small mb-1">Productos agotados</p>
+                <p class="display-6 mb-0">{{ productos_agotados }}</p>
+                <p class="text-body-secondary small mb-0">
+                    de {{ productos_publicados }} publicados
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <p class="text-body-secondary small mb-1">Clientes registrados</p>
+                <p class="display-6 mb-0">{{ clientes_registrados }}</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="card">
+    <div class="card-body pb-0">
+        <h2 class="h6 mb-3">Pedidos esperando respuesta</h2>
+    </div>
+
+    {% if ultimos_pendientes %}
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Pedido</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th class="text-end">Importe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pedido in ultimos_pendientes %}
+                        <tr>
+                            <td class="fw-semibold">#{{ pedido.id }}</td>
+                            <td>{{ pedido.cliente }}</td>
+                            <td class="text-body-secondary small">
+                                {{ pedido.fecha|date:"d/m/Y H:i" }}
+                            </td>
+                            <td class="text-end">
+                                {{ pedido.moneda }} {{ pedido.importe_total }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="card-body pt-0">
+            <p class="text-body-secondary mb-0">
+                No hay pedidos pendientes.
+            </p>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

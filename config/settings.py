@@ -142,6 +142,11 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 
+# A donde se manda a quien intenta entrar al panel sin haber ingresado.
+# Lo usa el decorador @login_required.
+LOGIN_URL = 'panel_ingresar'
+
+
 # Registro de errores
 # https://docs.djangoproject.com/en/5.2/topics/logging/
 #

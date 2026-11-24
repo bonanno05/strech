@@ -1,10 +1,14 @@
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
+from .forms import FormularioProducto
 from .models import Categoria, Cliente, DetallePedido, Pedido, Producto
 
 
@@ -461,3 +465,434 @@ def pedido_enviado(request, pedido_id):
         'detalles': detalles,
     }
     return render(request, 'pedido_enviado.html', contexto)
+
+
+# ---------------------------------------------------------------------------
+# PANEL DEL VENDEDOR
+#
+# El vendedor no es una entidad del modelo de datos: usa el sistema de usuarios
+# que ya trae Django, la tabla auth_user. Por eso el ingreso de aca no se
+# parece al del cliente: no leemos la contrasena a mano, se la pasamos a
+# Django, que ademas maneja la sesion y el cifrado.
+#
+# Son dos sesiones independientes y pueden convivir en el mismo navegador: una
+# persona puede estar como cliente y como vendedor al mismo tiempo.
+# ---------------------------------------------------------------------------
+
+
+def panel_ingresar(request):
+    """Ingreso del vendedor al panel de gestion."""
+    # Si ya ingreso, no tiene sentido mostrarle el formulario otra vez.
+    if request.user.is_authenticated:
+        return redirect('panel_inicio')
+
+    errores = []
+    usuario_escrito = ''
+
+    if request.method == 'POST':
+        usuario_escrito = request.POST.get('usuario', '').strip()
+        contrasena = request.POST.get('contrasena', '')
+
+        # authenticate devuelve el usuario si los datos son correctos, o None.
+        # Compara la contrasena contra la version cifrada, igual que hacemos
+        # con el cliente, pero sin que tengamos que escribirlo nosotros.
+        usuario = authenticate(request, username=usuario_escrito, password=contrasena)
+
+        if usuario is None:
+            # Se responde lo mismo exista o no el usuario, para no confirmarle
+            # a nadie que cierto nombre de usuario es valido.
+            errores.append('El usuario o la contraseña no son correctos.')
+        elif not usuario.is_staff:
+            errores.append('Esa cuenta no tiene acceso al panel.')
+        else:
+            # login() guarda en la sesion que este usuario ingreso.
+            login(request, usuario)
+            return redirect('panel_inicio')
+
+    contexto = {
+        'errores': errores,
+        'usuario_escrito': usuario_escrito,
+    }
+    return render(request, 'panel/ingresar.html', contexto)
+
+
+def panel_salir(request):
+    """Cierra la sesion del vendedor, sin tocar la del cliente."""
+    if request.method != 'POST':
+        return redirect('panel_inicio')
+
+    # logout() de Django borra la sesion ENTERA, y el carrito del cliente vive
+    # en esa misma sesion. Se lo guarda aparte y se lo repone despues, asi
+    # cerrar el panel no le vacia el carrito a quien este comprando en la
+    # misma computadora.
+    carrito_guardado = request.session.get(CLAVE_CARRITO)
+    cliente_guardado = request.session.get(CLAVE_CLIENTE)
+
+    logout(request)
+
+    if carrito_guardado is not None:
+        request.session[CLAVE_CARRITO] = carrito_guardado
+    if cliente_guardado is not None:
+        request.session[CLAVE_CLIENTE] = cliente_guardado
+
+    return redirect('panel_ingresar')
+
+
+@login_required
+def panel_inicio(request):
+    """Pantalla principal del panel, con el estado general del negocio."""
+    # count() cuenta en la base de datos y devuelve un numero. No trae los
+    # registros, asi que no importa cuantos haya: la consulta pesa lo mismo.
+    pedidos_pendientes = Pedido.objects.filter(
+        estado=Pedido.Estado.PENDIENTE).count()
+    pedidos_confirmados = Pedido.objects.filter(
+        estado=Pedido.Estado.CONFIRMADO).count()
+    productos_publicados = Producto.objects.filter(activo=True).count()
+    productos_agotados = Producto.objects.filter(activo=True, stock=0).count()
+    clientes_registrados = Cliente.objects.filter(activo=True).count()
+
+    # Los ultimos pedidos pendientes, para poder atenderlos sin ir a buscarlos.
+    #
+    # select_related('cliente') trae el cliente en la MISMA consulta. Sin eso,
+    # Django haria una consulta extra por cada pedido al mostrar el nombre del
+    # cliente en la plantilla: con 5 pedidos serian 6 consultas en vez de 1.
+    # Con 100 pedidos serian 101. Eso es lo que pide el RNF-04.
+    ultimos_pendientes = Pedido.objects.filter(
+        estado=Pedido.Estado.PENDIENTE
+    ).select_related('cliente')[:5]
+
+    contexto = {
+        'pedidos_pendientes': pedidos_pendientes,
+        'pedidos_confirmados': pedidos_confirmados,
+        'productos_publicados': productos_publicados,
+        'productos_agotados': productos_agotados,
+        'clientes_registrados': clientes_registrados,
+        'ultimos_pendientes': ultimos_pendientes,
+    }
+    return render(request, 'panel/inicio.html', contexto)
+
+
+@login_required
+def panel_pedidos(request):
+    """Lista los pedidos, con un filtro por estado. RF-15."""
+    # El filtro llega por la direccion, por ejemplo /panel/pedidos/?estado=pendiente
+    estado_pedido = request.GET.get('estado', 'pendiente')
+
+    # Solo se aceptan estados que existan. Si llega cualquier otra cosa se
+    # muestra todo, en lugar de romper o de filtrar por un valor inventado.
+    estados_validos = []
+    for valor, etiqueta in Pedido.Estado.choices:
+        estados_validos.append(valor)
+
+    # select_related trae el cliente en la misma consulta, para no hacer una
+    # consulta por cada fila al mostrar su nombre (RNF-04).
+    pedidos = Pedido.objects.select_related('cliente')
+
+    if estado_pedido in estados_validos:
+        pedidos = pedidos.filter(estado=estado_pedido)
+    else:
+        estado_pedido = 'todos'
+
+    # Los numeros de cada solapa. Son cuentas en la base, no traen registros.
+    conteos = {
+        'pendiente': Pedido.objects.filter(
+            estado=Pedido.Estado.PENDIENTE).count(),
+        'confirmado': Pedido.objects.filter(
+            estado=Pedido.Estado.CONFIRMADO).count(),
+        'descartado': Pedido.objects.filter(
+            estado=Pedido.Estado.DESCARTADO).count(),
+        'anulado': Pedido.objects.filter(
+            estado=Pedido.Estado.ANULADO).count(),
+        'todos': Pedido.objects.count(),
+    }
+
+    contexto = {
+        'pedidos': pedidos,
+        'estado_pedido': estado_pedido,
+        'conteos': conteos,
+    }
+    return render(request, 'panel/pedidos.html', contexto)
+
+
+@login_required
+def panel_pedido_detalle(request, pedido_id):
+    """Muestra un pedido con sus lineas y las acciones disponibles."""
+    pedido = get_object_or_404(
+        Pedido.objects.select_related('cliente'), pk=pedido_id)
+
+    # Se trae tambien el producto de cada linea, porque se muestra el stock
+    # que hay ahora al lado de la cantidad pedida.
+    detalles = pedido.detalles.select_related('producto').all()
+
+    # Para avisarle al vendedor, antes de que confirme, si algo no alcanza.
+    hay_faltantes = False
+    for detalle in detalles:
+        if detalle.cantidad > detalle.producto.stock:
+            hay_faltantes = True
+
+    contexto = {
+        'pedido': pedido,
+        'detalles': detalles,
+        'hay_faltantes': hay_faltantes,
+    }
+    return render(request, 'panel/pedido_detalle.html', contexto)
+
+
+@login_required
+def panel_confirmar_pedido(request, pedido_id):
+    """Confirma un pedido como venta y descuenta el stock. RF-13 y RF-14.
+
+    Es la operacion mas delicada del sistema. Dos cosas tienen que pasar
+    juntas o no pasar: descontar el stock de cada producto y marcar el pedido
+    como confirmado. Y ademas hay que impedir que dos confirmaciones
+    simultaneas del mismo producto lean el mismo stock y lo descuenten dos
+    veces. Eso es el RNF-11 completo.
+    """
+    if request.method != 'POST':
+        return redirect('panel_pedido_detalle', pedido_id=pedido_id)
+
+    faltantes = []
+    confirmado = False
+    ya_resuelto = False
+
+    with transaction.atomic():
+        # select_for_update() bloquea la fila en la base de datos hasta que
+        # termine la transaccion. Si otra confirmacion del mismo pedido llega
+        # al mismo tiempo, se queda esperando aca en vez de avanzar en
+        # paralelo.
+        pedido = Pedido.objects.select_for_update().filter(pk=pedido_id).first()
+
+        if pedido is None:
+            raise Http404('No encontramos ese pedido.')
+
+        if pedido.estado != Pedido.Estado.PENDIENTE:
+            # Alguien lo resolvio mientras tanto, o se apreto el boton dos
+            # veces. No se vuelve a descontar stock.
+            ya_resuelto = True
+        else:
+            detalles = list(pedido.detalles.select_related('producto'))
+
+            # Se bloquean tambien las filas de los productos. El orden por
+            # clave primaria es a proposito: si dos confirmaciones bloquearan
+            # los mismos productos en distinto orden podrian quedar trabadas
+            # una esperando a la otra.
+            identificadores = []
+            for detalle in detalles:
+                identificadores.append(detalle.producto_id)
+
+            productos_bloqueados = Producto.objects.select_for_update().filter(
+                pk__in=identificadores).order_by('pk')
+
+            producto_por_id = {}
+            for producto in productos_bloqueados:
+                producto_por_id[producto.id] = producto
+
+            # Primero se revisa que alcance para TODAS las lineas. Recien
+            # despues se descuenta: asi no queda un pedido con la mitad del
+            # stock descontado.
+            for detalle in detalles:
+                producto = producto_por_id[detalle.producto_id]
+                if detalle.cantidad > producto.stock:
+                    aviso = 'No alcanza el stock de %s: se piden %d y quedan %d.' % (
+                        producto.nombre,
+                        detalle.cantidad,
+                        producto.stock,
+                    )
+                    faltantes.append(aviso)
+
+            if len(faltantes) == 0:
+                for detalle in detalles:
+                    producto = producto_por_id[detalle.producto_id]
+                    producto.stock = producto.stock - detalle.cantidad
+                    producto.save()
+
+                pedido.estado = Pedido.Estado.CONFIRMADO
+                pedido.save()
+                confirmado = True
+
+    if ya_resuelto:
+        messages.error(request, 'Ese pedido ya no estaba pendiente.')
+    elif confirmado:
+        messages.success(
+            request, 'Pedido %d confirmado. El stock quedó descontado.' % pedido_id)
+    else:
+        for aviso in faltantes:
+            messages.error(request, aviso)
+
+    return redirect('panel_pedidos')
+
+
+@login_required
+def panel_descartar_pedido(request, pedido_id):
+    """Descarta un pedido. RF-13.
+
+    No toca el stock, porque al enviarse el pedido nunca se descontó.
+    """
+    if request.method != 'POST':
+        return redirect('panel_pedido_detalle', pedido_id=pedido_id)
+
+    ya_resuelto = False
+
+    with transaction.atomic():
+        pedido = Pedido.objects.select_for_update().filter(pk=pedido_id).first()
+
+        if pedido is None:
+            raise Http404('No encontramos ese pedido.')
+
+        if pedido.estado != Pedido.Estado.PENDIENTE:
+            ya_resuelto = True
+        else:
+            pedido.estado = Pedido.Estado.DESCARTADO
+            pedido.save()
+
+    if ya_resuelto:
+        messages.error(request, 'Ese pedido ya no estaba pendiente.')
+    else:
+        messages.success(request, 'Pedido %d descartado.' % pedido_id)
+
+    return redirect('panel_pedidos')
+
+
+@login_required
+def panel_productos(request):
+    """Lista los productos con busqueda y filtros. RF-05 y RF-07."""
+    texto_buscado = request.GET.get('buscar', '').strip()
+    categoria_elegida = request.GET.get('categoria', '')
+    situacion = request.GET.get('situacion', 'publicados')
+
+    # select_related trae la categoria en la misma consulta, para no hacer
+    # una consulta por fila al mostrar su nombre (RNF-04).
+    productos = Producto.objects.select_related('categoria')
+
+    if texto_buscado != '':
+        # icontains busca el texto adentro del nombre, sin distinguir
+        # mayusculas de minusculas.
+        productos = productos.filter(nombre__icontains=texto_buscado)
+
+    if categoria_elegida.isdigit():
+        productos = productos.filter(categoria_id=int(categoria_elegida))
+
+    if situacion == 'publicados':
+        productos = productos.filter(activo=True)
+    elif situacion == 'agotados':
+        productos = productos.filter(activo=True, stock=0)
+    elif situacion == 'de_baja':
+        productos = productos.filter(activo=False)
+
+    productos = productos.order_by('categoria__nombre', 'nombre')
+
+    conteos = {
+        'publicados': Producto.objects.filter(activo=True).count(),
+        'agotados': Producto.objects.filter(activo=True, stock=0).count(),
+        'de_baja': Producto.objects.filter(activo=False).count(),
+        'todos': Producto.objects.count(),
+    }
+
+    contexto = {
+        'productos': productos,
+        'categorias': Categoria.objects.all().order_by('nombre'),
+        'texto_buscado': texto_buscado,
+        'categoria_elegida': categoria_elegida,
+        'situacion': situacion,
+        'conteos': conteos,
+    }
+    return render(request, 'panel/productos.html', contexto)
+
+
+@login_required
+def panel_producto_nuevo(request):
+    """Alta de un producto. RF-01."""
+    if request.method == 'POST':
+        # Al formulario se le pasan los datos que llegaron del navegador.
+        formulario = FormularioProducto(request.POST)
+
+        # is_valid() corre todas las validaciones del modelo. Si algo falla,
+        # el formulario se vuelve a mostrar con los errores y con lo que el
+        # vendedor ya habia escrito.
+        if formulario.is_valid():
+            producto = formulario.save()
+            messages.success(request, 'Se agregó %s al catálogo.' % producto.nombre)
+            return redirect('panel_productos')
+    else:
+        # Sin datos: el formulario aparece vacio.
+        formulario = FormularioProducto()
+
+    contexto = {
+        'formulario': formulario,
+        'es_nuevo': True,
+    }
+    return render(request, 'panel/producto_formulario.html', contexto)
+
+
+@login_required
+def panel_producto_editar(request, producto_id):
+    """Modificacion de un producto. RF-02."""
+    producto = get_object_or_404(Producto, pk=producto_id)
+
+    if request.method == 'POST':
+        # instance le dice al formulario que esta editando este producto,
+        # no creando uno nuevo.
+        formulario = FormularioProducto(request.POST, instance=producto)
+
+        if formulario.is_valid():
+            formulario.save()
+            messages.success(request, 'Se guardaron los cambios de %s.' % producto.nombre)
+            return redirect('panel_productos')
+    else:
+        formulario = FormularioProducto(instance=producto)
+
+    contexto = {
+        'formulario': formulario,
+        'producto': producto,
+        'es_nuevo': False,
+    }
+    return render(request, 'panel/producto_formulario.html', contexto)
+
+
+@login_required
+def panel_producto_stock(request, producto_id):
+    """Cambia solamente la cantidad disponible, desde el listado. RF-04.
+
+    Es la operacion mas frecuente del vendedor, asi que tiene su propio
+    formulario en cada fila y no obliga a abrir la pantalla de edicion.
+    """
+    if request.method != 'POST':
+        return redirect('panel_productos')
+
+    producto = get_object_or_404(Producto, pk=producto_id)
+    texto_stock = request.POST.get('stock', '').strip()
+
+    if not texto_stock.isdigit():
+        messages.error(request, 'La cantidad tiene que ser un número entero y no negativa.')
+        return redirect('panel_productos')
+
+    producto.stock = int(texto_stock)
+    producto.save()
+    messages.success(
+        request, 'El stock de %s quedó en %d.' % (producto.nombre, producto.stock))
+    return redirect('panel_productos')
+
+
+@login_required
+def panel_producto_publicacion(request, producto_id):
+    """Publica o da de baja un producto. RF-02.
+
+    El producto NO se borra nunca. Darlo de baja lo saca del catalogo publico
+    pero lo conserva, porque puede estar referenciado en pedidos anteriores y
+    porque el historial tiene que seguir siendo consultable.
+    """
+    if request.method != 'POST':
+        return redirect('panel_productos')
+
+    producto = get_object_or_404(Producto, pk=producto_id)
+
+    if producto.activo:
+        producto.activo = False
+        aviso = 'Se dio de baja %s. Ya no aparece en el catálogo.' % producto.nombre
+    else:
+        producto.activo = True
+        aviso = 'Se publicó %s de nuevo en el catálogo.' % producto.nombre
+
+    producto.save()
+    messages.success(request, aviso)
+    return redirect('panel_productos')

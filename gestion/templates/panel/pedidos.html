@@ -1,0 +1,102 @@
+{% extends 'panel/base.html' %}
+
+{% block titulo %}Pedidos — Panel Strech{% endblock %}
+{% block nav_pedidos %}active{% endblock %}
+
+{% block contenido %}
+
+<h1 class="h4 mb-3">Pedidos</h1>
+
+<ul class="nav nav-pills mb-3 flex-wrap gap-1">
+    <li class="nav-item">
+        <a class="nav-link {% if estado_pedido == 'pendiente' %}active{% endif %}"
+           href="?estado=pendiente">
+            Pendientes
+            <span class="badge text-bg-light ms-1">{{ conteos.pendiente }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if estado_pedido == 'confirmado' %}active{% endif %}"
+           href="?estado=confirmado">
+            Confirmados
+            <span class="badge text-bg-light ms-1">{{ conteos.confirmado }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if estado_pedido == 'descartado' %}active{% endif %}"
+           href="?estado=descartado">
+            Descartados
+            <span class="badge text-bg-light ms-1">{{ conteos.descartado }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if estado_pedido == 'anulado' %}active{% endif %}"
+           href="?estado=anulado">
+            Anulados
+            <span class="badge text-bg-light ms-1">{{ conteos.anulado }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if estado_pedido == 'todos' %}active{% endif %}"
+           href="?estado=todos">
+            Todos
+            <span class="badge text-bg-light ms-1">{{ conteos.todos }}</span>
+        </a>
+    </li>
+</ul>
+
+{% if pedidos %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Pedido</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th class="text-end">Importe</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pedido in pedidos %}
+                        <tr>
+                            <td class="fw-semibold">#{{ pedido.id }}</td>
+                            <td>{{ pedido.cliente }}</td>
+                            <td class="text-body-secondary small">
+                                {{ pedido.fecha|date:"d/m/Y H:i" }}
+                            </td>
+                            <td>
+                                {% if pedido.estado == 'pendiente' %}
+                                    <span class="badge text-bg-warning">Pendiente</span>
+                                {% elif pedido.estado == 'confirmado' %}
+                                    <span class="badge text-bg-success">Confirmado</span>
+                                {% elif pedido.estado == 'descartado' %}
+                                    <span class="badge text-bg-secondary">Descartado</span>
+                                {% else %}
+                                    <span class="badge text-bg-dark">Anulado</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {{ pedido.moneda }} {{ pedido.importe_total }}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'panel_pedido_detalle' pedido.id %}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    Ver
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-light border text-center py-5 mb-0">
+        <p class="mb-0 text-body-secondary">No hay pedidos en este estado.</p>
+    </div>
+{% endif %}
+
+{% endblock %}

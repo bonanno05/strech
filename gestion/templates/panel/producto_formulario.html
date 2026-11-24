@@ -1,0 +1,128 @@
+{% extends 'panel/base.html' %}
+
+{% block titulo %}
+    {% if es_nuevo %}Nuevo producto{% else %}Editar producto{% endif %} — Panel Strech
+{% endblock %}
+{% block nav_productos %}active{% endblock %}
+
+{% block contenido %}
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a href="{% url 'panel_productos' %}" class="btn btn-sm btn-outline-secondary">
+        &larr; Productos
+    </a>
+    <h1 class="h4 mb-0">
+        {% if es_nuevo %}Nuevo producto{% else %}{{ producto.nombre }}{% endif %}
+    </h1>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-8">
+        <div class="card">
+            <div class="card-body">
+
+                {% if formulario.non_field_errors %}
+                    {% for error in formulario.non_field_errors %}
+                        <div class="alert alert-danger py-2 small">{{ error }}</div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ formulario.nombre.id_for_label }}"
+                               class="form-label">{{ formulario.nombre.label }}</label>
+                        {{ formulario.nombre }}
+                        {% for error in formulario.nombre.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ formulario.descripcion.id_for_label }}"
+                               class="form-label">{{ formulario.descripcion.label }}</label>
+                        {{ formulario.descripcion }}
+                        {% for error in formulario.descripcion.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ formulario.categoria.id_for_label }}"
+                               class="form-label">{{ formulario.categoria.label }}</label>
+                        {{ formulario.categoria }}
+                        {% for error in formulario.categoria.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-7 mb-3">
+                            <label for="{{ formulario.precio.id_for_label }}"
+                                   class="form-label">{{ formulario.precio.label }}</label>
+                            {{ formulario.precio }}
+                            {% for error in formulario.precio.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-5 mb-3">
+                            <label for="{{ formulario.moneda.id_for_label }}"
+                                   class="form-label">{{ formulario.moneda.label }}</label>
+                            {{ formulario.moneda }}
+                            {% for error in formulario.moneda.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <p class="text-body-secondary small mt-n2 mb-3">
+                        {{ formulario.moneda.help_text }}
+                    </p>
+
+                    <div class="mb-3">
+                        <label for="{{ formulario.stock.id_for_label }}"
+                               class="form-label">{{ formulario.stock.label }}</label>
+                        {{ formulario.stock }}
+                        <div class="form-text">{{ formulario.stock.help_text }}</div>
+                        {% for error in formulario.stock.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-check mb-4">
+                        {{ formulario.activo }}
+                        <label for="{{ formulario.activo.id_for_label }}"
+                               class="form-check-label">{{ formulario.activo.label }}</label>
+                        <div class="form-text">{{ formulario.activo.help_text }}</div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            {% if es_nuevo %}Agregar al catálogo{% else %}Guardar cambios{% endif %}
+                        </button>
+                        <a href="{% url 'panel_productos' %}" class="btn btn-outline-secondary">
+                            Cancelar
+                        </a>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    {% if not es_nuevo %}
+        <div class="col-12 col-lg-4 mt-3 mt-lg-0">
+            <div class="alert alert-light border">
+                <p class="small mb-2 fw-semibold">Sobre los precios</p>
+                <p class="small text-body-secondary mb-0">
+                    Cambiar el precio acá no modifica los pedidos anteriores.
+                    Cada pedido guarda el precio que tenía el producto en el
+                    momento de la venta.
+                </p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

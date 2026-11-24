@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.core.validators import MinValueValidator
 from django.db import models
 
 
@@ -49,7 +52,14 @@ class Producto(models.Model):
         on_delete=models.PROTECT,
         related_name='productos',
     )
-    precio = models.DecimalField(max_digits=12, decimal_places=2)
+    # El validador lo usa el formulario, para avisar con un mensaje claro.
+    # La restriccion de la clase Meta lo impide a nivel de la base de datos,
+    # aunque el dato llegue por otro camino que no sea el formulario.
+    precio = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
     moneda = models.CharField(max_length=3, choices=MONEDAS, default='ARS')
     stock = models.PositiveIntegerField(default=0)
     activo = models.BooleanField(default=True)
@@ -57,6 +67,12 @@ class Producto(models.Model):
     class Meta:
         verbose_name = 'producto'
         verbose_name_plural = 'productos'
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(precio__gte=0),
+                name='ck_producto_precio_no_negativo',
+            ),
+        ]
 
     def __str__(self):
         return self.nombre

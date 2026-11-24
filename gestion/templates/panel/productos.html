@@ -1,0 +1,179 @@
+{% extends 'panel/base.html' %}
+
+{% block titulo %}Productos — Panel Strech{% endblock %}
+{% block nav_productos %}active{% endblock %}
+
+{% block contenido %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h4 mb-0">Productos</h1>
+    <a href="{% url 'panel_producto_nuevo' %}" class="btn btn-primary">
+        Agregar producto
+    </a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+
+            <div class="col-12 col-md-5">
+                <label for="buscar" class="form-label small mb-1">Buscar</label>
+                <input type="search" id="buscar" name="buscar"
+                       value="{{ texto_buscado }}"
+                       placeholder="Nombre del producto"
+                       class="form-control">
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label for="categoria" class="form-label small mb-1">Categoría</label>
+                <select id="categoria" name="categoria" class="form-select">
+                    <option value="">Todas</option>
+                    {% for categoria in categorias %}
+                        <option value="{{ categoria.id }}"
+                            {% if categoria_elegida == categoria.id|stringformat:"s" %}selected{% endif %}>
+                            {{ categoria.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <input type="hidden" name="situacion" value="{{ situacion }}">
+
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary w-100">Filtrar</button>
+                <a href="{% url 'panel_productos' %}" class="btn btn-outline-secondary">
+                    Limpiar
+                </a>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<ul class="nav nav-pills mb-3 flex-wrap gap-1">
+    <li class="nav-item">
+        <a class="nav-link {% if situacion == 'publicados' %}active{% endif %}"
+           href="?situacion=publicados&buscar={{ texto_buscado }}&categoria={{ categoria_elegida }}">
+            Publicados
+            <span class="badge text-bg-light ms-1">{{ conteos.publicados }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if situacion == 'agotados' %}active{% endif %}"
+           href="?situacion=agotados&buscar={{ texto_buscado }}&categoria={{ categoria_elegida }}">
+            Agotados
+            <span class="badge text-bg-light ms-1">{{ conteos.agotados }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if situacion == 'de_baja' %}active{% endif %}"
+           href="?situacion=de_baja&buscar={{ texto_buscado }}&categoria={{ categoria_elegida }}">
+            Dados de baja
+            <span class="badge text-bg-light ms-1">{{ conteos.de_baja }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if situacion == 'todos' %}active{% endif %}"
+           href="?situacion=todos&buscar={{ texto_buscado }}&categoria={{ categoria_elegida }}">
+            Todos
+            <span class="badge text-bg-light ms-1">{{ conteos.todos }}</span>
+        </a>
+    </li>
+</ul>
+
+{% if productos %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th class="text-end">Precio</th>
+                        <th style="width: 180px;">Stock</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in productos %}
+                        <tr {% if not producto.activo %}class="opacity-50"{% endif %}>
+
+                            <td>
+                                <div class="fw-semibold">{{ producto.nombre }}</div>
+                                {% if producto.stock == 0 and producto.activo %}
+                                    <span class="badge text-bg-danger">Agotado</span>
+                                {% elif not producto.activo %}
+                                    <span class="badge text-bg-secondary">Dado de baja</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-body-secondary">
+                                {{ producto.categoria.nombre }}
+                            </td>
+
+                            <td class="text-end">
+                                {{ producto.moneda }} {{ producto.precio }}
+                            </td>
+
+                            <td>
+                                <form method="post"
+                                      action="{% url 'panel_producto_stock' producto.id %}"
+                                      class="d-flex gap-1">
+                                    {% csrf_token %}
+                                    <input type="number" name="stock"
+                                           value="{{ producto.stock }}" min="0"
+                                           class="form-control form-control-sm"
+                                           aria-label="Stock de {{ producto.nombre }}">
+                                    <button type="submit"
+                                            class="btn btn-sm btn-outline-secondary">
+                                        Guardar
+                                    </button>
+                                </form>
+                            </td>
+
+                            <td class="text-end">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <a href="{% url 'panel_producto_editar' producto.id %}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        Editar
+                                    </a>
+                                    <form method="post"
+                                          action="{% url 'panel_producto_publicacion' producto.id %}">
+                                        {% csrf_token %}
+                                        {% if producto.activo %}
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-outline-danger">
+                                                Dar de baja
+                                            </button>
+                                        {% else %}
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-outline-success">
+                                                Publicar
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </div>
+                            </td>
+
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <p class="text-body-secondary small mt-2 mb-0">
+        Los productos no se borran. Darlos de baja los saca del catálogo pero
+        los conserva, porque pueden figurar en pedidos anteriores.
+    </p>
+
+{% else %}
+    <div class="alert alert-light border text-center py-5 mb-0">
+        <p class="mb-1 text-body-secondary">No hay productos que coincidan.</p>
+        {% if texto_buscado or categoria_elegida %}
+            <a href="{% url 'panel_productos' %}" class="small">Limpiar los filtros</a>
+        {% endif %}
+    </div>
+{% endif %}
+
+{% endblock %}
