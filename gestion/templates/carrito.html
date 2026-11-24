@@ -80,13 +80,17 @@
         <a href="{% url 'catalogo' %}" class="btn btn-outline-secondary">
             Seguir mirando el catálogo
         </a>
-        <button type="button" class="btn btn-primary" disabled>
-            Enviar el pedido
-        </button>
+        <form method="post" action="{% url 'enviar_pedido' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                Enviar el pedido
+            </button>
+        </form>
     </div>
 
     <p class="text-body-secondary small mt-2 mb-0">
-        Para enviar un pedido vas a necesitar una cuenta. Esa parte todavía no está hecha.
+        El pedido queda pendiente hasta que el vendedor lo confirme.
+        El stock se descuenta recién en ese momento.
     </p>
 
 {% else %}

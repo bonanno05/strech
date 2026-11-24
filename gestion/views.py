@@ -2,9 +2,10 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.hashers import check_password, make_password
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .models import Categoria, Cliente, Producto
+from .models import Categoria, Cliente, DetallePedido, Pedido, Producto
 
 
 # El carrito se guarda en la sesion del navegador, no en la base de datos.
@@ -349,3 +350,114 @@ def salir(request):
     request.session.pop(CLAVE_CLIENTE, None)
     messages.success(request, 'Cerraste la sesión.')
     return redirect('catalogo')
+
+
+def enviar_pedido(request):
+    """Convierte el carrito de la sesion en un Pedido con sus detalles.
+
+    Es el momento en que el carrito deja de ser un borrador guardado en el
+    navegador y pasa a ser un registro de la base de datos.
+    """
+    # Enviar un pedido cambia datos, asi que solo se acepta por POST.
+    # Si alguien entra escribiendo la direccion, se lo manda al carrito.
+    if request.method != 'POST':
+        return redirect('carrito')
+
+    # RF-10: hace falta haber iniciado sesion. El carrito no se pierde,
+    # porque vive en la sesion y sigue estando despues de ingresar.
+    cliente = cliente_actual(request)
+    if cliente is None:
+        messages.info(request, 'Ingresá a tu cuenta para enviar el pedido.')
+        return redirect('ingresar')
+
+    carrito = leer_carrito(request)
+    if len(carrito) == 0:
+        messages.error(request, 'Tu carrito está vacío.')
+        return redirect('carrito')
+
+    # Se revisa todo otra vez contra la base de datos. El carrito vive en el
+    # navegador y pudo quedar viejo: un producto pudo agotarse o darse de baja
+    # mientras el cliente lo tenia cargado.
+    lineas = []
+    errores = []
+    total = Decimal('0.00')
+    moneda = ''
+
+    for texto_id, cantidad in carrito.items():
+        producto = Producto.objects.filter(pk=int(texto_id), activo=True).first()
+
+        if producto is None:
+            errores.append('Un producto de tu carrito ya no está publicado.')
+            continue
+
+        if cantidad > producto.stock:
+            aviso = 'No hay stock suficiente de %s. Quedan %d.' % (
+                producto.nombre,
+                producto.stock,
+            )
+            errores.append(aviso)
+            continue
+
+        if moneda == '':
+            moneda = producto.moneda
+
+        total = total + (producto.precio * cantidad)
+
+        linea = {
+            'producto': producto,
+            'cantidad': cantidad,
+        }
+        lineas.append(linea)
+
+    if len(errores) > 0:
+        for error in errores:
+            messages.error(request, error)
+        return redirect('carrito')
+
+    # Desde aca empieza lo que tiene que pasar entero o no pasar.
+    # Si algo falla adentro del bloque, la base deshace todo lo anterior y no
+    # queda ningun pedido a medias.
+    with transaction.atomic():
+        pedido = Pedido.objects.create(
+            cliente=cliente,
+            moneda=moneda,
+            importe_total=total,
+        )
+
+        for linea in lineas:
+            producto = linea['producto']
+            # El nombre y el precio se copian, no se referencian: la linea
+            # tiene que conservar las condiciones del momento de la venta,
+            # aunque despues el producto cambie de nombre o de precio.
+            DetallePedido.objects.create(
+                pedido=pedido,
+                producto=producto,
+                nombre_producto=producto.nombre,
+                precio_unitario=producto.precio,
+                cantidad=linea['cantidad'],
+            )
+
+    # El pedido ya quedo guardado, asi que el carrito deja de hacer falta.
+    # RF-12: nace pendiente y el stock NO se toca. Se descuenta recien cuando
+    # el vendedor confirma la venta, que es el RF-14.
+    guardar_carrito(request, {})
+
+    return redirect('pedido_enviado', pedido_id=pedido.id)
+
+
+def pedido_enviado(request, pedido_id):
+    """Muestra el pedido que se acaba de enviar."""
+    cliente = cliente_actual(request)
+    if cliente is None:
+        return redirect('ingresar')
+
+    # Se filtra tambien por cliente. Asi, cambiando el numero de la direccion,
+    # nadie puede ver el pedido de otra persona.
+    pedido = get_object_or_404(Pedido, pk=pedido_id, cliente=cliente)
+    detalles = pedido.detalles.all()
+
+    contexto = {
+        'pedido': pedido,
+        'detalles': detalles,
+    }
+    return render(request, 'pedido_enviado.html', contexto)

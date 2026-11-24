@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Pedido enviado — Strech{% endblock %}
+
+{% block contenido %}
+
+<div class="alert alert-success">
+    <p class="mb-1 fw-semibold">Tu pedido fue enviado</p>
+    <p class="mb-0 small">
+        Queda pendiente hasta que el vendedor lo confirme.
+        Te va a contactar por WhatsApp.
+    </p>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h1 class="h5 mb-1">Pedido número {{ pedido.id }}</h1>
+        <p class="text-body-secondary small mb-0">
+            {{ pedido.fecha|date:"d/m/Y H:i" }} · {{ pedido.get_estado_display }}
+        </p>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th class="text-end">Precio</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detalle in detalles %}
+                    <tr>
+                        <td>{{ detalle.nombre_producto }}</td>
+                        <td class="text-end">
+                            {{ pedido.moneda }} {{ detalle.precio_unitario }}
+                        </td>
+                        <td class="text-end">{{ detalle.cantidad }}</td>
+                        <td class="text-end fw-semibold">
+                            {{ pedido.moneda }} {{ detalle.subtotal }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end">Total</th>
+                    <th class="text-end fs-5">
+                        {{ pedido.moneda }} {{ pedido.importe_total }}
+                    </th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<a href="{% url 'catalogo' %}" class="btn btn-primary">Volver al catálogo</a>
+
+{% endblock %}
