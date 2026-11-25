@@ -1,0 +1,102 @@
+{% extends 'panel/base.html' %}
+
+{% block titulo %}
+    {% if es_nuevo %}Nuevo cliente{% else %}Editar cliente{% endif %} — Panel Strech
+{% endblock %}
+{% block nav_clientes %}active{% endblock %}
+
+{% block contenido %}
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    {% if es_nuevo %}
+        <a href="{% url 'panel_clientes' %}" class="btn btn-sm btn-outline-secondary">
+            &larr; Clientes
+        </a>
+        <h1 class="h4 mb-0">Nuevo cliente</h1>
+    {% else %}
+        <a href="{% url 'panel_cliente_detalle' cliente.id %}"
+           class="btn btn-sm btn-outline-secondary">&larr; Ficha</a>
+        <h1 class="h4 mb-0">Editar a {{ cliente }}</h1>
+    {% endif %}
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-7">
+        <div class="card">
+            <div class="card-body">
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label for="{{ formulario.nombre.id_for_label }}"
+                                   class="form-label">{{ formulario.nombre.label }}</label>
+                            {{ formulario.nombre }}
+                            {% for error in formulario.nombre.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="{{ formulario.apellido.id_for_label }}"
+                                   class="form-label">{{ formulario.apellido.label }}</label>
+                            {{ formulario.apellido }}
+                            {% for error in formulario.apellido.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ formulario.whatsapp.id_for_label }}"
+                               class="form-label">{{ formulario.whatsapp.label }}</label>
+                        {{ formulario.whatsapp }}
+                        <div class="form-text">{{ formulario.whatsapp.help_text }}</div>
+                        {% for error in formulario.whatsapp.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="{{ formulario.correo.id_for_label }}"
+                               class="form-label">{{ formulario.correo.label }}</label>
+                        {{ formulario.correo }}
+                        {% for error in formulario.correo.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            {% if es_nuevo %}Registrar{% else %}Guardar cambios{% endif %}
+                        </button>
+                        {% if es_nuevo %}
+                            <a href="{% url 'panel_clientes' %}"
+                               class="btn btn-outline-secondary">Cancelar</a>
+                        {% else %}
+                            <a href="{% url 'panel_cliente_detalle' cliente.id %}"
+                               class="btn btn-outline-secondary">Cancelar</a>
+                        {% endif %}
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    {% if es_nuevo %}
+        <div class="col-12 col-lg-5 mt-3 mt-lg-0">
+            <div class="alert alert-light border">
+                <p class="small mb-2 fw-semibold">Sobre la contraseña</p>
+                <p class="small text-body-secondary mb-0">
+                    El cliente queda registrado sin contraseña, así que todavía
+                    no puede iniciar sesión. Desde su ficha podés generarle una
+                    con <strong>Restablecer la contraseña</strong>.
+                </p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

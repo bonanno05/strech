@@ -1,0 +1,116 @@
+{% extends 'panel/base.html' %}
+
+{% block titulo %}Clientes — Panel Strech{% endblock %}
+{% block nav_clientes %}active{% endblock %}
+
+{% block contenido %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h4 mb-0">Clientes</h1>
+    <a href="{% url 'panel_cliente_nuevo' %}" class="btn btn-primary">
+        Registrar cliente
+    </a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-9">
+                <label for="buscar" class="form-label small mb-1">Buscar</label>
+                <input type="search" id="buscar" name="buscar"
+                       value="{{ texto_buscado }}"
+                       placeholder="Nombre, apellido o número de WhatsApp"
+                       class="form-control">
+            </div>
+            <input type="hidden" name="situacion" value="{{ situacion }}">
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary w-100">Buscar</button>
+                <a href="{% url 'panel_clientes' %}" class="btn btn-outline-secondary">
+                    Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<ul class="nav nav-pills mb-3 flex-wrap gap-1">
+    <li class="nav-item">
+        <a class="nav-link {% if situacion == 'activos' %}active{% endif %}"
+           href="?situacion=activos&buscar={{ texto_buscado }}">
+            Activos
+            <span class="badge text-bg-light ms-1">{{ conteos.activos }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if situacion == 'inactivos' %}active{% endif %}"
+           href="?situacion=inactivos&buscar={{ texto_buscado }}">
+            Dados de baja
+            <span class="badge text-bg-light ms-1">{{ conteos.inactivos }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if situacion == 'todos' %}active{% endif %}"
+           href="?situacion=todos&buscar={{ texto_buscado }}">
+            Todos
+            <span class="badge text-bg-light ms-1">{{ conteos.todos }}</span>
+        </a>
+    </li>
+</ul>
+
+{% if clientes %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>WhatsApp</th>
+                        <th>Correo</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cliente in clientes %}
+                        <tr {% if not cliente.activo %}class="opacity-50"{% endif %}>
+                            <td>
+                                <div class="fw-semibold">{{ cliente }}</div>
+                                {% if not cliente.activo %}
+                                    <span class="badge text-bg-secondary">Dado de baja</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if cliente.whatsapp %}
+                                    {{ cliente.whatsapp }}
+                                {% else %}
+                                    <span class="text-body-secondary">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-body-secondary small">
+                                {% if cliente.correo %}
+                                    {{ cliente.correo }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'panel_cliente_detalle' cliente.id %}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    Ver ficha
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-light border text-center py-5 mb-0">
+        <p class="mb-1 text-body-secondary">No hay clientes que coincidan.</p>
+        {% if texto_buscado %}
+            <a href="{% url 'panel_clientes' %}" class="small">Limpiar la búsqueda</a>
+        {% endif %}
+    </div>
+{% endif %}
+
+{% endblock %}

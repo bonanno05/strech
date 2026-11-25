@@ -1,3 +1,4 @@
+import secrets
 from decimal import Decimal
 
 from django.contrib import messages
@@ -5,10 +6,11 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import FormularioProducto
+from .forms import FormularioCliente, FormularioProducto
 from .models import Categoria, Cliente, DetallePedido, Pedido, Producto
 
 
@@ -896,3 +898,184 @@ def panel_producto_publicacion(request, producto_id):
     producto.save()
     messages.success(request, aviso)
     return redirect('panel_productos')
+
+
+@login_required
+def panel_clientes(request):
+    """Lista los clientes con busqueda. RF-17."""
+    texto_buscado = request.GET.get('buscar', '').strip()
+    situacion = request.GET.get('situacion', 'activos')
+
+    clientes = Cliente.objects.all()
+
+    if texto_buscado != '':
+        # Q permite combinar condiciones con "o". Se busca el texto en el
+        # nombre, en el apellido o en el numero de WhatsApp.
+        clientes = clientes.filter(
+            Q(nombre__icontains=texto_buscado)
+            | Q(apellido__icontains=texto_buscado)
+            | Q(whatsapp__icontains=texto_buscado)
+        )
+
+    if situacion == 'activos':
+        clientes = clientes.filter(activo=True)
+    elif situacion == 'inactivos':
+        clientes = clientes.filter(activo=False)
+
+    clientes = clientes.order_by('apellido', 'nombre', 'id')
+
+    conteos = {
+        'activos': Cliente.objects.filter(activo=True).count(),
+        'inactivos': Cliente.objects.filter(activo=False).count(),
+        'todos': Cliente.objects.count(),
+    }
+
+    contexto = {
+        'clientes': clientes,
+        'texto_buscado': texto_buscado,
+        'situacion': situacion,
+        'conteos': conteos,
+    }
+    return render(request, 'panel/clientes.html', contexto)
+
+
+@login_required
+def panel_cliente_detalle(request, cliente_id):
+    """Ficha del cliente con su historial. RF-18."""
+    cliente = get_object_or_404(Cliente, pk=cliente_id)
+
+    # prefetch_related trae todos los detalles de todos los pedidos en una
+    # sola consulta extra, en lugar de una por pedido (RNF-04).
+    pedidos = cliente.pedidos.prefetch_related('detalles').order_by('-fecha')
+    reparaciones = cliente.reparaciones.all().order_by('-fecha_ingreso')
+
+    contexto = {
+        'cliente': cliente,
+        'pedidos': pedidos,
+        'reparaciones': reparaciones,
+    }
+    return render(request, 'panel/cliente_detalle.html', contexto)
+
+
+@login_required
+def panel_cliente_nuevo(request):
+    """Alta de un cliente desde el panel. RF-17.
+
+    Queda sin contrasena, asi que todavia no puede iniciar sesion. El
+    vendedor le genera una con el restablecimiento del RF-23.
+    """
+    if request.method == 'POST':
+        formulario = FormularioCliente(request.POST)
+        if formulario.is_valid():
+            cliente = formulario.save()
+            messages.success(request, 'Se registró a %s.' % cliente)
+            return redirect('panel_cliente_detalle', cliente_id=cliente.id)
+    else:
+        formulario = FormularioCliente()
+
+    contexto = {
+        'formulario': formulario,
+        'es_nuevo': True,
+    }
+    return render(request, 'panel/cliente_formulario.html', contexto)
+
+
+@login_required
+def panel_cliente_editar(request, cliente_id):
+    """Modificacion de los datos de un cliente. RF-17."""
+    cliente = get_object_or_404(Cliente, pk=cliente_id)
+
+    if request.method == 'POST':
+        formulario = FormularioCliente(request.POST, instance=cliente)
+        if formulario.is_valid():
+            formulario.save()
+            messages.success(request, 'Se guardaron los cambios.')
+            return redirect('panel_cliente_detalle', cliente_id=cliente.id)
+    else:
+        formulario = FormularioCliente(instance=cliente)
+
+    contexto = {
+        'formulario': formulario,
+        'cliente': cliente,
+        'es_nuevo': False,
+    }
+    return render(request, 'panel/cliente_formulario.html', contexto)
+
+
+@login_required
+def panel_cliente_contrasena(request, cliente_id):
+    """Restablece la contrasena de un cliente. RF-23.
+
+    El vendedor no elige la contrasena: el sistema genera una al azar y se la
+    muestra una sola vez, para que se la pase al cliente. Asi el vendedor no
+    tiene que inventar ni escribir la contrasena de otra persona, y lo que
+    queda guardado es el cifrado, no el texto.
+    """
+    if request.method != 'POST':
+        return redirect('panel_cliente_detalle', cliente_id=cliente_id)
+
+    cliente = get_object_or_404(Cliente, pk=cliente_id)
+
+    if not cliente.activo:
+        messages.error(request, 'Esa cuenta está dada de baja.')
+        return redirect('panel_cliente_detalle', cliente_id=cliente.id)
+
+    # token_urlsafe genera texto al azar con una fuente criptografica, no con
+    # el generador comun. Es el mismo criterio del RNF-10 para los codigos de
+    # seguimiento: que no se pueda adivinar.
+    nueva = secrets.token_urlsafe(8)
+
+    cliente.contrasena = make_password(nueva)
+    cliente.save()
+
+    messages.success(
+        request,
+        'Contraseña nueva de %s: %s  —  anotala y pasásela, no se vuelve a mostrar.'
+        % (cliente, nueva))
+    return redirect('panel_cliente_detalle', cliente_id=cliente.id)
+
+
+@login_required
+def panel_cliente_eliminar_datos(request, cliente_id):
+    """Elimina los datos personales de un cliente. RNF-13.
+
+    No borra el registro. Vacia los campos personales y marca la cuenta como
+    inactiva, en una sola operacion. El registro se conserva porque los
+    pedidos lo referencian: si se borrara, quedarian ventas sin cliente y se
+    perderia el historial del negocio.
+
+    Es irreversible: los datos vaciados no se pueden recuperar.
+    """
+    cliente = get_object_or_404(Cliente, pk=cliente_id)
+
+    if request.method != 'POST':
+        return redirect('panel_cliente_detalle', cliente_id=cliente.id)
+
+    # Se pide escribir una palabra exacta. Es una operacion que no tiene
+    # vuelta atras, asi que no alcanza con un solo clic.
+    confirmacion = request.POST.get('confirmacion', '').strip()
+    if confirmacion != 'ELIMINAR':
+        messages.error(
+            request,
+            'Para eliminar los datos hay que escribir ELIMINAR en el cuadro.')
+        return redirect('panel_cliente_detalle', cliente_id=cliente.id)
+
+    nombre_anterior = str(cliente)
+
+    # Los cinco campos y la bandera tienen que cambiar juntos. Si quedara a
+    # medias, el cliente podria terminar sin nombre pero con la cuenta
+    # habilitada, o al reves.
+    with transaction.atomic():
+        cliente.nombre = None
+        cliente.apellido = None
+        cliente.whatsapp = None
+        cliente.correo = None
+        cliente.contrasena = None
+        cliente.activo = False
+        cliente.save()
+
+    messages.success(
+        request,
+        'Se eliminaron los datos personales de %s. Sus pedidos se conservan '
+        'sin referencia a la persona.' % nombre_anterior)
+    return redirect('panel_clientes')

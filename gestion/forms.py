@@ -8,7 +8,7 @@ obligatorio. Es lo que en el apartado 4.2 del informe se menciona como
 """
 from django import forms
 
-from .models import Producto
+from .models import Cliente, Producto
 
 
 class FormularioProducto(forms.ModelForm):
@@ -61,3 +61,65 @@ class FormularioProducto(forms.ModelForm):
                 attrs={'class': 'form-control', 'min': '0'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+
+class FormularioCliente(forms.ModelForm):
+    """Alta y edicion de un cliente desde el panel. RF-17.
+
+    No incluye la contrasena: eso se maneja aparte, con el restablecimiento
+    del RF-23, para que el vendedor nunca tenga que escribir la contrasena
+    de otra persona.
+    """
+
+    class Meta:
+        model = Cliente
+
+        fields = [
+            'nombre',
+            'apellido',
+            'whatsapp',
+            'correo',
+        ]
+
+        labels = {
+            'nombre': 'Nombre',
+            'apellido': 'Apellido',
+            'whatsapp': 'Número de WhatsApp',
+            'correo': 'Correo electrónico',
+        }
+
+        help_texts = {
+            'whatsapp': 'Es el dato con el que el cliente inicia sesión. No se puede repetir.',
+        }
+
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'apellido': forms.TextInput(attrs={'class': 'form-control'}),
+            'whatsapp': forms.TextInput(attrs={'class': 'form-control'}),
+            'correo': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_whatsapp(self):
+        """Valida el numero de WhatsApp.
+
+        El modelo ya lo marca como unico, pero conviene dar un mensaje claro
+        en lugar de dejar que falle la base de datos. Y desde el panel el
+        numero es obligatorio, aunque el modelo lo admita vacio: vacio solo
+        queda cuando se eliminan los datos personales de alguien.
+        """
+        numero = self.cleaned_data.get('whatsapp', '')
+
+        if numero is None or numero.strip() == '':
+            raise forms.ValidationError('Hace falta el número de WhatsApp.')
+
+        numero = numero.strip()
+
+        repetidos = Cliente.objects.filter(whatsapp=numero)
+        if self.instance.pk is not None:
+            # Si se esta editando, no se cuenta a si mismo como repetido.
+            repetidos = repetidos.exclude(pk=self.instance.pk)
+
+        if repetidos.exists():
+            raise forms.ValidationError('Ya hay otra cuenta con ese número.')
+
+        return numero
