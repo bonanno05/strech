@@ -1,0 +1,79 @@
+{% extends 'panel/base.html' %}
+
+{% block titulo %}Servicio técnico — Panel Strech{% endblock %}
+{% block nav_reparaciones %}active{% endblock %}
+
+{% block contenido %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h4 mb-0">Servicio técnico</h1>
+    <a href="{% url 'panel_reparacion_nueva' %}" class="btn btn-primary">
+        Registrar ingreso
+    </a>
+</div>
+
+<ul class="nav nav-pills mb-3 flex-wrap gap-1">
+    <li class="nav-item">
+        <a class="nav-link {% if estado_filtro == 'activas' %}active{% endif %}"
+           href="?estado=activas">En el taller</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if estado_filtro == 'entregadas' %}active{% endif %}"
+           href="?estado=entregadas">Entregadas</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if estado_filtro == 'todas' %}active{% endif %}"
+           href="?estado=todas">
+            Todas
+            <span class="badge text-bg-light ms-1">{{ total }}</span>
+        </a>
+    </li>
+</ul>
+
+{% if reparaciones %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Equipo</th>
+                        <th>Cliente</th>
+                        <th>Ingreso</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reparacion in reparaciones %}
+                        <tr>
+                            <td class="font-monospace">
+                                {{ reparacion.codigo_seguimiento }}
+                            </td>
+                            <td class="fw-semibold">{{ reparacion.modelo_equipo }}</td>
+                            <td>{{ reparacion.cliente }}</td>
+                            <td class="text-body-secondary small">
+                                {{ reparacion.fecha_ingreso|date:"d/m/Y" }}
+                            </td>
+                            <td>
+                                <span class="badge text-bg-secondary">
+                                    {{ reparacion.estado_actual }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'panel_reparacion_detalle' reparacion.id %}"
+                                   class="btn btn-sm btn-outline-primary">Ver</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-light border text-center py-5 mb-0">
+        <p class="mb-0 text-body-secondary">No hay reparaciones en este estado.</p>
+    </div>
+{% endif %}
+
+{% endblock %}

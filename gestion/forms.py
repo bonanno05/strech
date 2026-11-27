@@ -8,7 +8,7 @@ obligatorio. Es lo que en el apartado 4.2 del informe se menciona como
 """
 from django import forms
 
-from .models import Cliente, Producto
+from .models import Cliente, Producto, Reparacion
 
 
 class FormularioProducto(forms.ModelForm):
@@ -123,3 +123,84 @@ class FormularioCliente(forms.ModelForm):
             raise forms.ValidationError('Ya hay otra cuenta con ese número.')
 
         return numero
+
+
+class FormularioReparacion(forms.ModelForm):
+    """Alta de una reparacion. RF-24.
+
+    El requisito pide poder asociar el equipo a un cliente que ya exista o a
+    uno nuevo registrado en la misma operacion. Por eso el formulario tiene
+    las dos posibilidades: una lista con los clientes registrados y, debajo,
+    los campos para cargar uno nuevo. Hay que usar una sola de las dos.
+    """
+
+    cliente_existente = forms.ModelChoiceField(
+        queryset=Cliente.objects.none(),
+        required=False,
+        label='Cliente ya registrado',
+        empty_label='— Elegir de la lista —',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
+    nuevo_nombre = forms.CharField(
+        required=False, max_length=50, label='Nombre',
+        widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+    nuevo_apellido = forms.CharField(
+        required=False, max_length=50, label='Apellido',
+        widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+    nuevo_whatsapp = forms.CharField(
+        required=False, max_length=20, label='Número de WhatsApp',
+        widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+    class Meta:
+        model = Reparacion
+        fields = ['modelo_equipo', 'falla_declarada']
+        labels = {
+            'modelo_equipo': 'Modelo del equipo',
+            'falla_declarada': 'Falla declarada por el cliente',
+        }
+        help_texts = {
+            'falla_declarada': 'Lo que cuenta el cliente, con sus palabras.',
+        }
+        widgets = {
+            'modelo_equipo': forms.TextInput(attrs={'class': 'form-control'}),
+            'falla_declarada': forms.Textarea(
+                attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        # La lista de clientes se arma cuando se usa el formulario, no cuando
+        # se define la clase. Si se armara al definirla, quedaria congelada
+        # con los clientes que habia al arrancar el servidor.
+        super().__init__(*args, **kwargs)
+        self.fields['cliente_existente'].queryset = Cliente.objects.filter(
+            activo=True).order_by('apellido', 'nombre')
+
+    def clean(self):
+        """Valida que se use una sola de las dos formas de indicar el cliente."""
+        datos = super().clean()
+
+        existente = datos.get('cliente_existente')
+        whatsapp = datos.get('nuevo_whatsapp', '')
+        if whatsapp is None:
+            whatsapp = ''
+        whatsapp = whatsapp.strip()
+
+        if existente is None and whatsapp == '':
+            raise forms.ValidationError(
+                'Elegí un cliente de la lista o cargá uno nuevo con su número '
+                'de WhatsApp.')
+
+        if existente is not None and whatsapp != '':
+            raise forms.ValidationError(
+                'Elegí una sola opción: un cliente de la lista o uno nuevo, '
+                'no las dos.')
+
+        if whatsapp != '' and Cliente.objects.filter(whatsapp=whatsapp).exists():
+            raise forms.ValidationError(
+                'Ya hay un cliente registrado con ese número. Elegilo de la lista.')
+
+        datos['nuevo_whatsapp'] = whatsapp
+        return datos

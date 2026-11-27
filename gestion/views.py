@@ -10,8 +10,16 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import FormularioCliente, FormularioProducto
-from .models import Categoria, Cliente, DetallePedido, Pedido, Producto
+from .forms import FormularioCliente, FormularioProducto, FormularioReparacion
+from .models import (
+    CambioEstado,
+    Categoria,
+    Cliente,
+    DetallePedido,
+    Pedido,
+    Producto,
+    Reparacion,
+)
 
 
 # El carrito se guarda en la sesion del navegador, no en la base de datos.
@@ -1079,3 +1087,210 @@ def panel_cliente_eliminar_datos(request, cliente_id):
         'Se eliminaron los datos personales de %s. Sus pedidos se conservan '
         'sin referencia a la persona.' % nombre_anterior)
     return redirect('panel_clientes')
+
+
+# ---------------------------------------------------------------------------
+# SERVICIO TECNICO
+# ---------------------------------------------------------------------------
+
+# El codigo de seguimiento no usa las letras ni los numeros que se confunden
+# al leerlos o al dictarlos por telefono: se sacaron la O, la I, la L, el cero
+# y el uno.
+ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+LARGO_CODIGO = 10
+
+
+def generar_codigo_seguimiento():
+    """Devuelve un codigo de seguimiento nuevo y que no exista todavia.
+
+    RF-25 y RNF-10. Se usa secrets y no random: secrets toma los valores de
+    una fuente criptografica, de modo que el codigo no se puede adivinar ni
+    reconstruir conociendo otros. Si fuera correlativo, cualquiera podria
+    consultar la reparacion de otro probando el numero de al lado.
+    """
+    while True:
+        letras = []
+        for numero in range(LARGO_CODIGO):
+            letras.append(secrets.choice(ALFABETO_CODIGO))
+        codigo = ''.join(letras)
+
+        # La probabilidad de repetirlo es minima, pero el campo es unico:
+        # si llegara a repetirse, la base rechazaria el alta.
+        ya_existe = Reparacion.objects.filter(codigo_seguimiento=codigo).exists()
+        if not ya_existe:
+            return codigo
+
+
+@login_required
+def panel_reparaciones(request):
+    """Lista las reparaciones, con filtro por estado actual."""
+    estado_filtro = request.GET.get('estado', 'activas')
+
+    # select_related trae el cliente en la misma consulta.
+    # prefetch_related trae todos los cambios de estado de todas las
+    # reparaciones en una sola consulta mas, en vez de una por reparacion.
+    # Sin esto, mostrar el estado de 50 reparaciones serian 51 consultas.
+    reparaciones = Reparacion.objects.select_related(
+        'cliente').prefetch_related('cambios')
+
+    # El estado no es un campo: se deduce del ultimo cambio registrado. Por
+    # eso el filtro no se puede hacer con un filter() comun y se resuelve
+    # recorriendo la lista.
+    lista = []
+    for reparacion in reparaciones:
+        ultimo = reparacion.ultimo_cambio()
+        if ultimo is None:
+            estado_actual = ''
+        else:
+            estado_actual = ultimo.estado
+
+        if estado_filtro == 'activas' and estado_actual == 'entregado':
+            continue
+        if estado_filtro == 'entregadas' and estado_actual != 'entregado':
+            continue
+
+        lista.append(reparacion)
+
+    contexto = {
+        'reparaciones': lista,
+        'estado_filtro': estado_filtro,
+        'total': Reparacion.objects.count(),
+    }
+    return render(request, 'panel/reparaciones.html', contexto)
+
+
+@login_required
+def panel_reparacion_nueva(request):
+    """Registra el ingreso de un equipo. RF-24 y RF-25."""
+    if request.method == 'POST':
+        formulario = FormularioReparacion(request.POST)
+
+        if formulario.is_valid():
+            # El cliente, la reparacion y su primer estado tienen que quedar
+            # los tres o ninguno. Si se creara el cliente y fallara la
+            # reparacion, quedaria una persona cargada sin motivo.
+            with transaction.atomic():
+                cliente = formulario.cleaned_data['cliente_existente']
+
+                if cliente is None:
+                    cliente = Cliente.objects.create(
+                        nombre=formulario.cleaned_data['nuevo_nombre'],
+                        apellido=formulario.cleaned_data['nuevo_apellido'],
+                        whatsapp=formulario.cleaned_data['nuevo_whatsapp'],
+                    )
+
+                reparacion = formulario.save(commit=False)
+                reparacion.cliente = cliente
+                reparacion.codigo_seguimiento = generar_codigo_seguimiento()
+                reparacion.save()
+
+                # Toda reparacion nace con su primer cambio de estado. Sin
+                # esto no tendria estado, porque el estado se deduce del
+                # historial.
+                CambioEstado.objects.create(
+                    reparacion=reparacion,
+                    estado=CambioEstado.Estado.RECIBIDO,
+                )
+
+            messages.success(
+                request,
+                'Se registró la reparación. Código de seguimiento: %s'
+                % reparacion.codigo_seguimiento)
+            return redirect('panel_reparacion_detalle', reparacion_id=reparacion.id)
+    else:
+        formulario = FormularioReparacion()
+
+    contexto = {
+        'formulario': formulario,
+    }
+    return render(request, 'panel/reparacion_formulario.html', contexto)
+
+
+@login_required
+def panel_reparacion_detalle(request, reparacion_id):
+    """Ficha de la reparacion con todo su historial de estados. RF-27."""
+    reparacion = get_object_or_404(
+        Reparacion.objects.select_related('cliente'), pk=reparacion_id)
+
+    cambios = reparacion.cambios.all().order_by('-fecha', '-id')
+
+    ultimo = reparacion.ultimo_cambio()
+    if ultimo is None:
+        estado_actual = ''
+    else:
+        estado_actual = ultimo.estado
+
+    contexto = {
+        'reparacion': reparacion,
+        'cambios': cambios,
+        'estado_actual': estado_actual,
+        'estados_posibles': CambioEstado.Estado.choices,
+    }
+    return render(request, 'panel/reparacion_detalle.html', contexto)
+
+
+@login_required
+def panel_reparacion_estado(request, reparacion_id):
+    """Registra un cambio de estado. RF-26 y RF-27.
+
+    No modifica nada: agrega un registro nuevo al historial. Asi queda
+    constancia de cuando paso cada cosa, que es lo que pide el RF-27.
+    """
+    if request.method != 'POST':
+        return redirect('panel_reparacion_detalle', reparacion_id=reparacion_id)
+
+    reparacion = get_object_or_404(Reparacion, pk=reparacion_id)
+    estado_nuevo = request.POST.get('estado', '')
+
+    estados_validos = []
+    for valor, etiqueta in CambioEstado.Estado.choices:
+        estados_validos.append(valor)
+
+    if estado_nuevo not in estados_validos:
+        messages.error(request, 'Ese estado no existe.')
+        return redirect('panel_reparacion_detalle', reparacion_id=reparacion.id)
+
+    ultimo = reparacion.ultimo_cambio()
+    if ultimo is not None and ultimo.estado == estado_nuevo:
+        messages.error(
+            request, 'La reparación ya estaba en ese estado.')
+        return redirect('panel_reparacion_detalle', reparacion_id=reparacion.id)
+
+    CambioEstado.objects.create(reparacion=reparacion, estado=estado_nuevo)
+
+    messages.success(
+        request, 'La reparación pasó a %s.' % reparacion.estado_actual())
+    return redirect('panel_reparacion_detalle', reparacion_id=reparacion.id)
+
+
+def seguimiento(request):
+    """Consulta publica del estado de una reparacion. RF-28.
+
+    No hace falta tener cuenta: alcanza con el codigo. Se recibe por POST y no
+    por la direccion a proposito, para que el codigo no quede escrito en el
+    historial del navegador ni en el registro del servidor.
+    """
+    reparacion = None
+    cambios = []
+    codigo_escrito = ''
+    no_encontrada = False
+
+    if request.method == 'POST':
+        codigo_escrito = request.POST.get('codigo', '').strip().upper()
+
+        if codigo_escrito != '':
+            reparacion = Reparacion.objects.filter(
+                codigo_seguimiento=codigo_escrito).first()
+
+            if reparacion is None:
+                no_encontrada = True
+            else:
+                cambios = reparacion.cambios.all().order_by('fecha', 'id')
+
+    contexto = {
+        'reparacion': reparacion,
+        'cambios': cambios,
+        'codigo_escrito': codigo_escrito,
+        'no_encontrada': no_encontrada,
+    }
+    return render(request, 'seguimiento.html', contexto)

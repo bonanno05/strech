@@ -6,6 +6,8 @@ urlpatterns = [
     path('', views.catalogo, name='catalogo'),
     path('producto/<int:producto_id>/', views.producto_detalle, name='producto_detalle'),
 
+    path('seguimiento/', views.seguimiento, name='seguimiento'),
+
     path('carrito/', views.carrito, name='carrito'),
     path('carrito/agregar/<int:producto_id>/', views.agregar_al_carrito, name='agregar_al_carrito'),
     path('carrito/actualizar/<int:producto_id>/', views.actualizar_carrito, name='actualizar_carrito'),
@@ -17,6 +19,15 @@ urlpatterns = [
     path('panel/', views.panel_inicio, name='panel_inicio'),
     path('panel/ingresar/', views.panel_ingresar, name='panel_ingresar'),
     path('panel/salir/', views.panel_salir, name='panel_salir'),
+    path('panel/reparaciones/', views.panel_reparaciones,
+         name='panel_reparaciones'),
+    path('panel/reparaciones/nueva/', views.panel_reparacion_nueva,
+         name='panel_reparacion_nueva'),
+    path('panel/reparaciones/<int:reparacion_id>/',
+         views.panel_reparacion_detalle, name='panel_reparacion_detalle'),
+    path('panel/reparaciones/<int:reparacion_id>/estado/',
+         views.panel_reparacion_estado, name='panel_reparacion_estado'),
+
     path('panel/clientes/', views.panel_clientes, name='panel_clientes'),
     path('panel/clientes/nuevo/', views.panel_cliente_nuevo,
          name='panel_cliente_nuevo'),

@@ -1,0 +1,119 @@
+{% extends 'panel/base.html' %}
+
+{% block titulo %}Registrar ingreso — Panel Strech{% endblock %}
+{% block nav_reparaciones %}active{% endblock %}
+
+{% block contenido %}
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a href="{% url 'panel_reparaciones' %}" class="btn btn-sm btn-outline-secondary">
+        &larr; Servicio técnico
+    </a>
+    <h1 class="h4 mb-0">Registrar el ingreso de un equipo</h1>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-8">
+        <div class="card">
+            <div class="card-body">
+
+                {% for error in formulario.non_field_errors %}
+                    <div class="alert alert-danger py-2 small">{{ error }}</div>
+                {% endfor %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <h2 class="h6 mb-3">El equipo</h2>
+
+                    <div class="mb-3">
+                        <label for="{{ formulario.modelo_equipo.id_for_label }}"
+                               class="form-label">{{ formulario.modelo_equipo.label }}</label>
+                        {{ formulario.modelo_equipo }}
+                        {% for error in formulario.modelo_equipo.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="{{ formulario.falla_declarada.id_for_label }}"
+                               class="form-label">{{ formulario.falla_declarada.label }}</label>
+                        {{ formulario.falla_declarada }}
+                        <div class="form-text">{{ formulario.falla_declarada.help_text }}</div>
+                        {% for error in formulario.falla_declarada.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <hr>
+
+                    <h2 class="h6 mb-1">¿De quién es?</h2>
+                    <p class="text-body-secondary small mb-3">
+                        Elegilo de la lista, o cargalo abajo si todavía no está registrado.
+                        Una cosa o la otra.
+                    </p>
+
+                    <div class="mb-3">
+                        <label for="{{ formulario.cliente_existente.id_for_label }}"
+                               class="form-label">{{ formulario.cliente_existente.label }}</label>
+                        {{ formulario.cliente_existente }}
+                    </div>
+
+                    <div class="card bg-body-tertiary border-0 mb-4">
+                        <div class="card-body">
+                            <p class="small fw-semibold mb-3">O registrar uno nuevo</p>
+
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label for="{{ formulario.nuevo_nombre.id_for_label }}"
+                                           class="form-label small">
+                                        {{ formulario.nuevo_nombre.label }}</label>
+                                    {{ formulario.nuevo_nombre }}
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label for="{{ formulario.nuevo_apellido.id_for_label }}"
+                                           class="form-label small">
+                                        {{ formulario.nuevo_apellido.label }}</label>
+                                    {{ formulario.nuevo_apellido }}
+                                </div>
+                            </div>
+
+                            <div class="mb-0">
+                                <label for="{{ formulario.nuevo_whatsapp.id_for_label }}"
+                                       class="form-label small">
+                                    {{ formulario.nuevo_whatsapp.label }}</label>
+                                {{ formulario.nuevo_whatsapp }}
+                                {% for error in formulario.nuevo_whatsapp.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            Registrar el ingreso
+                        </button>
+                        <a href="{% url 'panel_reparaciones' %}"
+                           class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4 mt-3 mt-lg-0">
+        <div class="alert alert-light border">
+            <p class="small mb-2 fw-semibold">El código de seguimiento</p>
+            <p class="small text-body-secondary mb-0">
+                Se genera solo al registrar el ingreso. Con ese código el cliente
+                consulta el estado de su equipo sin necesidad de tener cuenta ni
+                de escribirte.
+            </p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

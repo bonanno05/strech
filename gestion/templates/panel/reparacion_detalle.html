@@ -1,0 +1,111 @@
+{% extends 'panel/base.html' %}
+
+{% block titulo %}{{ reparacion.codigo_seguimiento }} — Panel Strech{% endblock %}
+{% block nav_reparaciones %}active{% endblock %}
+
+{% block contenido %}
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a href="{% url 'panel_reparaciones' %}" class="btn btn-sm btn-outline-secondary">
+        &larr; Servicio técnico
+    </a>
+    <h1 class="h4 mb-0">{{ reparacion.modelo_equipo }}</h1>
+    <span class="badge text-bg-secondary">{{ reparacion.estado_actual }}</span>
+</div>
+
+<div class="row g-3">
+
+    <div class="col-12 col-lg-5">
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <p class="text-body-secondary small mb-1">Código de seguimiento</p>
+                <p class="h4 font-monospace mb-3">{{ reparacion.codigo_seguimiento }}</p>
+                <p class="text-body-secondary small mb-0">
+                    Es el que usa el cliente para consultar el estado en
+                    <a href="{% url 'seguimiento' %}" target="_blank">Seguir una reparación</a>.
+                </p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h6 mb-3">Cliente</h2>
+                <p class="mb-1 fw-semibold">
+                    <a href="{% url 'panel_cliente_detalle' reparacion.cliente.id %}"
+                       class="text-decoration-none">{{ reparacion.cliente }}</a>
+                </p>
+                {% if reparacion.cliente.whatsapp %}
+                    <p class="small mb-0">WhatsApp: {{ reparacion.cliente.whatsapp }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h6 mb-2">Falla declarada</h2>
+                <p class="small mb-3">{{ reparacion.falla_declarada }}</p>
+                <p class="text-body-secondary small mb-0">
+                    Ingresó el {{ reparacion.fecha_ingreso|date:"d/m/Y" }} a las
+                    {{ reparacion.fecha_ingreso|date:"H:i" }}
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="col-12 col-lg-7">
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h6 mb-3">Cambiar el estado</h2>
+
+                <form method="post"
+                      action="{% url 'panel_reparacion_estado' reparacion.id %}"
+                      class="d-flex flex-wrap gap-2">
+                    {% csrf_token %}
+                    <select name="estado" class="form-select" style="max-width: 260px;"
+                            aria-label="Estado nuevo">
+                        {% for valor, etiqueta in estados_posibles %}
+                            <option value="{{ valor }}"
+                                {% if valor == estado_actual %}disabled{% endif %}>
+                                {{ etiqueta }}
+                                {% if valor == estado_actual %}(actual){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary">Registrar</button>
+                </form>
+
+                <p class="text-body-secondary small mt-3 mb-0">
+                    Cada cambio queda guardado con su fecha. No se pisa el anterior.
+                </p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body pb-2">
+                <h2 class="h6 mb-3">Historial</h2>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for cambio in cambios %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            {% if forloop.first %}
+                                <strong>{{ cambio.get_estado_display }}</strong>
+                            {% else %}
+                                {{ cambio.get_estado_display }}
+                            {% endif %}
+                        </span>
+                        <span class="text-body-secondary small">
+                            {{ cambio.fecha|date:"d/m/Y H:i" }}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
